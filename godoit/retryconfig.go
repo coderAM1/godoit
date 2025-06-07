@@ -5,6 +5,4 @@ import (
 	"time"
 )
 
-type RetryConfig interface {
-	RetryTime(ctx context.Context, task Task) time.Time
-}
+type RetryConfig func(ctx context.Context, task Task) time.Time

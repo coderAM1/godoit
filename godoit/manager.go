@@ -8,19 +8,20 @@ import (
 	"time"
 )
 
+const TaskDoesNotExist = "task does not exist"
+
 // structs
 
 type TaskFunc func(ctx context.Context, args json.RawMessage) error
 
 type Manager struct {
-	dbTasker             DbTasker
-	idMaker              IdMaker
-	retryConfig          RetryConfig
-	taskMap              map[string]TaskFunc
-	ctx                  context.Context
-	threadLimit          int
-	durationBetweenQuery time.Duration
-	taskDuration         time.Duration
+	dbTasker    DbTasker
+	idMaker     IdMaker
+	retryConfig RetryConfig
+	taskMap     map[string]TaskFunc
+	ctx         context.Context
+	threadLimit int
+	started     atomic.Bool
 }
 
 type ManagerInfo struct {
@@ -30,13 +31,13 @@ type ManagerInfo struct {
 
 // functions
 
-func CreateManager(ctx context.Context, tasker DbTasker, config RetryConfig, idMaker IdMaker, threadLimit int) (*Manager, error) {
+func CreateManager(ctx context.Context, tasker DbTasker, retry RetryConfig, idMaker IdMaker, threadLimit int) (*Manager, error) {
 	if tasker == nil {
 		return nil, errors.New("cannot utilize nil tasker")
 	}
-	if config == nil {
-		return nil, errors.New("cannot utilize nil config")
-	}
+	//if config == nil {
+	//	return nil, errors.New("cannot utilize nil config")
+	//}
 	if threadLimit <= 0 {
 		return nil, errors.New("cannot less than or equal to zero threads")
 	}
@@ -45,14 +46,13 @@ func CreateManager(ctx context.Context, tasker DbTasker, config RetryConfig, idM
 		idGen = DefaultIdMaker
 	}
 	return &Manager{
-		dbTasker:             tasker,
-		retryConfig:          config,
-		taskMap:              make(map[string]TaskFunc),
-		idMaker:              idGen,
-		ctx:                  ctx,
-		threadLimit:          threadLimit,
-		durationBetweenQuery: time.Second * 15,
-		taskDuration:         time.Second * 30,
+		dbTasker:    tasker,
+		retryConfig: retry,
+		taskMap:     make(map[string]TaskFunc),
+		idMaker:     idGen,
+		ctx:         ctx,
+		threadLimit: threadLimit,
+		started:     atomic.Bool{},
 	}, nil
 }
 
@@ -65,10 +65,15 @@ func (man *Manager) PutTaskInfo(taskName string, taskFunc TaskFunc) error {
 	return nil
 }
 
+func (man *Manager) GetTask(taskName string) (TaskFunc, bool) {
+	task, ok := man.taskMap[taskName]
+	return task, ok
+}
+
 func (man *Manager) BookTask(ctx context.Context, taskName string, when time.Time, args json.RawMessage) error {
 	_, ok := man.taskMap[taskName]
 	if !ok {
-		return errors.New("task does not exist")
+		return errors.New(TaskDoesNotExist)
 	}
 	id, err := man.idMaker(ctx, taskName, when)
 	if err != nil {
@@ -95,10 +100,13 @@ func (man *Manager) Setup(ctx context.Context) error {
 
 // Start starts infinite for loop to query and run tasks unless error occur or ctx gets cancelled.
 // Recommended to use go routine when calling,
-func (man *Manager) Start(ctx context.Context) error {
+func (man *Manager) Start(ctx context.Context, durationBetweenQuery time.Duration, taskDuration time.Duration) error {
+	if man.started.Swap(true) {
+		return errors.New("already started")
+	}
 	ctx, cnc := context.WithCancel(ctx)
 	defer cnc()
-	queryTimer := time.NewTicker(man.durationBetweenQuery)
+	queryTimer := time.NewTicker(durationBetweenQuery)
 	defer queryTimer.Stop()
 	tickCount := 0
 	taskGoing := atomic.Int64{}
@@ -129,7 +137,7 @@ func (man *Manager) Start(ctx context.Context) error {
 					// TODO decide how to handle manager and db wise
 					return
 				}
-				taskCtx, taskCnc := context.WithTimeout(ctx, man.taskDuration)
+				taskCtx, taskCnc := context.WithTimeout(ctx, taskDuration)
 				defer taskCnc()
 				taskGoing.Add(1)
 				// TODO figure out better way to handle contexts getting cancelled with task

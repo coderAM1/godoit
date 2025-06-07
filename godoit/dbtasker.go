@@ -10,6 +10,7 @@ type DbTasker interface {
 	SetUpDb(ctx context.Context) error
 
 	// UpsertManagerInfo adds or updates the manager info to the db, if needed.
+	// TODO figure out if needed
 	UpsertManagerInfo(ctx context.Context, info ManagerInfo)
 
 	// BookTask adds a specified Task to the database to be run at a later time.
@@ -20,5 +21,6 @@ type DbTasker interface {
 	QueryTasks(ctx context.Context, limit int) ([]Task, error)
 
 	// UpdateTask updates the db on whether the tasks
+	// TODO decide if this should be a single task to update or if a bulk update function should be used
 	UpdateTask(ctx context.Context, task Task) error
 }
