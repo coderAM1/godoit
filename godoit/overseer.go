@@ -14,8 +14,8 @@ const TaskDoesNotExist = "task does not exist"
 
 type TaskFunc func(ctx context.Context, args json.RawMessage) error
 
-type Manager struct {
-	dbTasker    DbTasker
+type Overseer struct {
+	chronicler  Chronicler
 	idMaker     IdMaker
 	retryConfig RetryConfig
 	taskMap     map[string]TaskFunc
@@ -24,14 +24,14 @@ type Manager struct {
 	started     atomic.Bool
 }
 
-type ManagerInfo struct {
+type OverseerInfo struct {
 	name    string `json:"name"`
 	podName string `json:"podName"`
 }
 
 // functions
 
-func CreateManager(ctx context.Context, tasker DbTasker, retry RetryConfig, idMaker IdMaker, threadLimit int) (*Manager, error) {
+func CreateOverseer(ctx context.Context, tasker Chronicler, retry RetryConfig, idMaker IdMaker, threadLimit int) (*Overseer, error) {
 	if tasker == nil {
 		return nil, errors.New("cannot utilize nil tasker")
 	}
@@ -45,8 +45,8 @@ func CreateManager(ctx context.Context, tasker DbTasker, retry RetryConfig, idMa
 	if idGen == nil {
 		idGen = DefaultIdMaker
 	}
-	return &Manager{
-		dbTasker:    tasker,
+	return &Overseer{
+		chronicler:  tasker,
 		retryConfig: retry,
 		taskMap:     make(map[string]TaskFunc),
 		idMaker:     idGen,
@@ -56,7 +56,7 @@ func CreateManager(ctx context.Context, tasker DbTasker, retry RetryConfig, idMa
 	}, nil
 }
 
-func (man *Manager) PutTaskInfo(taskName string, taskFunc TaskFunc) error {
+func (man *Overseer) PutTaskInfo(taskName string, taskFunc TaskFunc) error {
 	_, ok := man.taskMap[taskName]
 	if ok {
 		return errors.New("task name already utilized")
@@ -65,12 +65,12 @@ func (man *Manager) PutTaskInfo(taskName string, taskFunc TaskFunc) error {
 	return nil
 }
 
-func (man *Manager) GetTask(taskName string) (TaskFunc, bool) {
+func (man *Overseer) GetTask(taskName string) (TaskFunc, bool) {
 	task, ok := man.taskMap[taskName]
 	return task, ok
 }
 
-func (man *Manager) BookTask(ctx context.Context, taskName string, when time.Time, args json.RawMessage) error {
+func (man *Overseer) BookTask(ctx context.Context, taskName string, when time.Time, args json.RawMessage) error {
 	_, ok := man.taskMap[taskName]
 	if !ok {
 		return errors.New(TaskDoesNotExist)
@@ -90,17 +90,17 @@ func (man *Manager) BookTask(ctx context.Context, taskName string, when time.Tim
 		Args:    args,
 		Retry:   false,
 	}
-	err = man.dbTasker.BookTask(ctx, task)
+	err = man.chronicler.RecordTask(ctx, task)
 	return err
 }
 
-func (man *Manager) Setup(ctx context.Context) error {
-	return man.dbTasker.SetUpDb(ctx)
+func (man *Overseer) Setup(ctx context.Context) error {
+	return man.chronicler.SetUpChronicle(ctx)
 }
 
 // Start starts infinite for loop to query and run tasks unless error occur or ctx gets cancelled.
 // Recommended to use go routine when calling,
-func (man *Manager) Start(ctx context.Context, durationBetweenQuery time.Duration, taskDuration time.Duration) error {
+func (man *Overseer) Start(ctx context.Context, durationBetweenQuery time.Duration, taskDuration time.Duration) error {
 	if man.started.Swap(true) {
 		return errors.New("already started")
 	}
@@ -125,7 +125,7 @@ func (man *Manager) Start(ctx context.Context, durationBetweenQuery time.Duratio
 			return errors.New("context cancelled")
 		}
 		currentTasksRunning := int(taskGoing.Load())
-		tasks, err := man.dbTasker.QueryTasks(ctx, man.threadLimit-currentTasksRunning)
+		tasks, err := man.chronicler.QueryTasks(ctx, man.threadLimit-currentTasksRunning)
 		if err != nil {
 			return err
 		}
@@ -134,7 +134,7 @@ func (man *Manager) Start(ctx context.Context, durationBetweenQuery time.Duratio
 			go func(task Task) {
 				taskFunc, ok := man.taskMap[task.Name]
 				if !ok {
-					// TODO decide how to handle manager and db wise
+					// TODO decide how to handle overseer and db wise
 					return
 				}
 				taskCtx, taskCnc := context.WithTimeout(ctx, taskDuration)
@@ -151,7 +151,7 @@ func (man *Manager) Start(ctx context.Context, durationBetweenQuery time.Duratio
 					updatedTask = task.CreateUpdatedTask(DONE, time.Now())
 				}
 				// TODO handle error also probably best to just batch these with a channel and update on ticks
-				man.dbTasker.UpdateTask(ctx, updatedTask)
+				man.chronicler.UpdateTask(ctx, updatedTask)
 			}(task)
 		}
 		tickCount++

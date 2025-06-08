@@ -8,8 +8,9 @@ import (
 )
 
 type PgIt struct {
-	conn *pgx.Conn
-	ctx  context.Context
+	conn   *pgx.Conn
+	logger godoit.LogIt
+	ctx    context.Context
 }
 
 func NewPgIt(ctx context.Context, conn *pgx.Conn) (*PgIt, error) {
@@ -22,19 +23,24 @@ func NewPgIt(ctx context.Context, conn *pgx.Conn) (*PgIt, error) {
 	}, nil
 }
 
-func (pg *PgIt) SetUpDb(ctx context.Context) error {
+func (pg *PgIt) SetUpChronicle(ctx context.Context) error {
+	pg.logger.InfoLog(ctx, "starting setting up postgres db")
 	return nil
 }
 
-func (pg *PgIt) UpsertManagerInfo(ctx context.Context, info godoit.ManagerInfo) {
+func (pg *PgIt) UpsertOverseerInfo(ctx context.Context, info godoit.OverseerInfo) {
 
 }
 
-func (pg *PgIt) BookTask(ctx context.Context, task godoit.Task) error {
+func (pg *PgIt) RecordTask(ctx context.Context, task godoit.Task) error {
+	pg.logger.InfoLog(ctx, "starting setting up postgres db")
 	return nil
 }
 
 func (pg *PgIt) QueryTasks(ctx context.Context, limit int) ([]godoit.Task, error) {
+	if limit <= 0 {
+		return []godoit.Task{}, nil
+	}
 	return []godoit.Task{}, nil
 }
 

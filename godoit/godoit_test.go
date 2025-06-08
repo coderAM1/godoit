@@ -11,17 +11,17 @@ import (
 	"time"
 )
 
-func TestManager_Setup(t *testing.T) {
+func TestOverseer_Setup(t *testing.T) {
 	ctx := t.Context()
 	functionCalled := atomic.Bool{}
-	dbTest := &DbTaskerTester{
-		SetUpDbFunc: func(ctx context.Context) error {
+	chronTest := &ChroniclerMock{
+		SetUpChronicleFunc: func(ctx context.Context) error {
 			functionCalled.Store(true)
 			return nil
 		},
 	}
 
-	man, err := godoit.CreateManager(ctx, dbTest, nil, nil, 2)
+	man, err := godoit.CreateOverseer(ctx, chronTest, nil, nil, 2)
 	assert.Nil(t, err)
 	assert.NotNil(t, man)
 	assert.False(t, functionCalled.Load())
@@ -30,18 +30,18 @@ func TestManager_Setup(t *testing.T) {
 	assert.True(t, functionCalled.Load())
 }
 
-func TestManager_SetupError(t *testing.T) {
+func TestOverseer_SetupError(t *testing.T) {
 	ctx := t.Context()
 	functionCalled := atomic.Bool{}
 	expErr := errors.New("expected error")
-	dbTest := &DbTaskerTester{
-		SetUpDbFunc: func(ctx context.Context) error {
+	chronTest := &ChroniclerMock{
+		SetUpChronicleFunc: func(ctx context.Context) error {
 			functionCalled.Store(true)
 			return expErr
 		},
 	}
 
-	man, err := godoit.CreateManager(ctx, dbTest, nil, nil, 2)
+	man, err := godoit.CreateOverseer(ctx, chronTest, nil, nil, 2)
 	assert.Nil(t, err)
 	assert.NotNil(t, man)
 	assert.False(t, functionCalled.Load())
@@ -51,10 +51,10 @@ func TestManager_SetupError(t *testing.T) {
 	assert.Equal(t, expErr, err)
 }
 
-func TestManager_PutTaskInfo(t *testing.T) {
+func TestOverseer_PutTaskInfo(t *testing.T) {
 	ctx := t.Context()
-	dbTest := &DbTaskerTester{}
-	man, err := godoit.CreateManager(ctx, dbTest, nil, nil, 2)
+	chronTest := &ChroniclerMock{}
+	man, err := godoit.CreateOverseer(ctx, chronTest, nil, nil, 2)
 	assert.Nil(t, err)
 	assert.NotNil(t, man)
 	taskName := "test"
@@ -71,10 +71,10 @@ func TestManager_PutTaskInfo(t *testing.T) {
 	assert.Nil(t, jsonErr)
 }
 
-func TestManager_PutTaskInfoError(t *testing.T) {
+func TestOverseer_PutTaskInfoError(t *testing.T) {
 	ctx := t.Context()
-	dbTest := &DbTaskerTester{}
-	man, err := godoit.CreateManager(ctx, dbTest, nil, nil, 2)
+	chronTest := &ChroniclerMock{}
+	man, err := godoit.CreateOverseer(ctx, chronTest, nil, nil, 2)
 	assert.Nil(t, err)
 	assert.NotNil(t, man)
 	taskName := "test"
@@ -87,10 +87,10 @@ func TestManager_PutTaskInfoError(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-func TestManager_GetTask(t *testing.T) {
+func TestOverseer_GetTask(t *testing.T) {
 	ctx := t.Context()
-	dbTest := &DbTaskerTester{}
-	man, err := godoit.CreateManager(ctx, dbTest, nil, nil, 2)
+	chronTest := &ChroniclerMock{}
+	man, err := godoit.CreateOverseer(ctx, chronTest, nil, nil, 2)
 	assert.Nil(t, err)
 	assert.NotNil(t, man)
 	taskNameNoErr := "noErr"
@@ -114,17 +114,17 @@ func TestManager_GetTask(t *testing.T) {
 	assert.Equal(t, errToGet, returnErr)
 }
 
-func TestManager_BookTask(t *testing.T) {
+func TestOverseer_BookTask(t *testing.T) {
 	ctx := t.Context()
 	functionCalled := atomic.Bool{}
 	assert.False(t, functionCalled.Load())
-	dbTest := &DbTaskerTester{
-		BookTaskFunc: func(ctx context.Context, task godoit.Task) error {
+	chronTest := &ChroniclerMock{
+		RecordTaskFunc: func(ctx context.Context, task godoit.Task) error {
 			functionCalled.Store(true)
 			return nil
 		},
 	}
-	man, err := godoit.CreateManager(ctx, dbTest, nil, nil, 2)
+	man, err := godoit.CreateOverseer(ctx, chronTest, nil, nil, 2)
 	assert.Nil(t, err)
 	assert.NotNil(t, man)
 
@@ -137,10 +137,10 @@ func TestManager_BookTask(t *testing.T) {
 	assert.True(t, functionCalled.Load())
 }
 
-func TestManager_BookTaskNoTask(t *testing.T) {
+func TestOverseer_BookTaskNoTask(t *testing.T) {
 	ctx := t.Context()
-	dbTest := &DbTaskerTester{}
-	man, err := godoit.CreateManager(ctx, dbTest, nil, nil, 2)
+	chronTest := &ChroniclerMock{}
+	man, err := godoit.CreateOverseer(ctx, chronTest, nil, nil, 2)
 	assert.Nil(t, err)
 	assert.NotNil(t, man)
 
@@ -150,7 +150,7 @@ func TestManager_BookTaskNoTask(t *testing.T) {
 	assert.Equal(t, godoit.TaskDoesNotExist, msg)
 }
 
-func TestManager_Start(t *testing.T) {
+func TestOverseer_Start(t *testing.T) {
 	ctx, cnc := context.WithTimeout(t.Context(), 5*time.Second)
 
 	taskName := "testFunc"
@@ -175,7 +175,7 @@ func TestManager_Start(t *testing.T) {
 
 	num := atomic.Int32{}
 
-	dbTest := &DbTaskerTester{
+	chronTest := &ChroniclerMock{
 		QueryTasksFunc: func(ctx context.Context, limit int) ([]godoit.Task, error) {
 			if !taskOneDone.Load() {
 				return []godoit.Task{taskOne}, nil
@@ -188,7 +188,7 @@ func TestManager_Start(t *testing.T) {
 		},
 	}
 
-	man, err := godoit.CreateManager(ctx, dbTest, nil, nil, 2)
+	man, err := godoit.CreateOverseer(ctx, chronTest, nil, nil, 2)
 	assert.Nil(t, err)
 	assert.NotNil(t, man)
 

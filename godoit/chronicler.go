@@ -4,17 +4,17 @@ import "context"
 
 // interface
 
-type DbTasker interface {
-	// SetUpDb sets up the database being used for godoit to properly work.
+type Chronicler interface {
+	// SetUpChronicle sets up the database being used for godoit to properly work.
 	// I.E. creating tables with the needed columns.
-	SetUpDb(ctx context.Context) error
+	SetUpChronicle(ctx context.Context) error
 
-	// UpsertManagerInfo adds or updates the manager info to the db, if needed.
+	// UpsertOverseerInfo adds or updates the overseer info to the db, if needed.
 	// TODO figure out if needed
-	UpsertManagerInfo(ctx context.Context, info ManagerInfo)
+	UpsertOverseerInfo(ctx context.Context, info OverseerInfo)
 
-	// BookTask adds a specified Task to the database to be run at a later time.
-	BookTask(ctx context.Context, task Task) error
+	// RecordTask adds a specified Task to the database to be run at a later time.
+	RecordTask(ctx context.Context, task Task) error
 
 	// QueryTasks queries the database for Task(s) that need to be run based on a limit of
 	// go routines to run.
