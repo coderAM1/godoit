@@ -70,25 +70,24 @@ func (man *Overseer) GetTask(taskName string) (TaskFunc, bool) {
 	return task, ok
 }
 
-func (man *Overseer) BookTask(ctx context.Context, taskName string, when time.Time, args json.RawMessage) error {
+func (man *Overseer) BookTask(ctx context.Context, taskName string, scheduled time.Time, args json.RawMessage) error {
 	_, ok := man.taskMap[taskName]
 	if !ok {
 		return errors.New(TaskDoesNotExist)
 	}
-	id, err := man.idMaker(ctx, taskName, when)
+	id, err := man.idMaker(ctx, taskName, scheduled)
 	if err != nil {
 		return err
 	}
-	now := time.Now()
+	now := time.Now().UTC()
 	task := Task{
-		Id:      id,
-		Name:    taskName,
-		Created: now,
-		When:    when,
-		Updated: now,
-		Status:  PENDING,
-		Args:    args,
-		Retry:   false,
+		Id:        id,
+		Name:      taskName,
+		Created:   now,
+		Scheduled: scheduled.UTC(),
+		Updated:   now,
+		Status:    PENDING,
+		Args:      args,
 	}
 	err = man.chronicler.RecordTask(ctx, task)
 	return err
@@ -145,10 +144,10 @@ func (man *Overseer) Start(ctx context.Context, durationBetweenQuery time.Durati
 				taskGoing.Add(-1)
 				var updatedTask Task
 				if taskErr != nil {
-					updatedTask = task.CreateUpdatedTask(FAILED, time.Now())
+					updatedTask = task.CreateUpdatedTask(FAILED, time.Now().UTC())
 					// TODO figure out what else to do with this error
 				} else {
-					updatedTask = task.CreateUpdatedTask(DONE, time.Now())
+					updatedTask = task.CreateUpdatedTask(DONE, time.Now().UTC())
 				}
 				// TODO handle error also probably best to just batch these with a channel and update on ticks
 				man.chronicler.UpdateTask(ctx, updatedTask)

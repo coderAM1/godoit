@@ -132,7 +132,7 @@ func TestOverseer_BookTask(t *testing.T) {
 
 	err = man.PutTaskInfo(taskName, NoErrorTaskFunc())
 	assert.Nil(t, err)
-	err = man.BookTask(ctx, taskName, time.Now(), []byte{})
+	err = man.BookTask(ctx, taskName, time.Now().UTC(), []byte{})
 	assert.Nil(t, err)
 	assert.True(t, functionCalled.Load())
 }

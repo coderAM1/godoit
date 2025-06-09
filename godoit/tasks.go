@@ -13,6 +13,7 @@ const PENDING status = "PENDING"
 const GOING status = "GOING"
 const DONE status = "DONE"
 const FAILED status = "FAILED"
+const UNKNOWN status = "UNKNOWN"
 
 // structs
 
@@ -20,7 +21,7 @@ type Task struct {
 	Id             string          `json:"id"`
 	Name           string          `json:"taskName"`
 	Created        time.Time       `json:"created"`
-	When           time.Time       `json:"when"`
+	Scheduled      time.Time       `json:"scheduled"`
 	Updated        time.Time       `json:"updated"`
 	Status         status          `json:"status"`
 	Args           json.RawMessage `json:"args"`
@@ -37,12 +38,12 @@ type RecurringTaskInfo struct {
 
 func (t Task) CreateUpdatedTask(stat status, updated time.Time) Task {
 	return Task{
-		Id:      t.Id,
-		Name:    t.Name,
-		Created: t.Created,
-		When:    t.When,
-		Updated: updated,
-		Status:  stat,
-		Args:    t.Args,
+		Id:        t.Id,
+		Name:      t.Name,
+		Created:   t.Created,
+		Scheduled: t.Scheduled,
+		Updated:   updated,
+		Status:    stat,
+		Args:      t.Args,
 	}
 }

@@ -50,12 +50,12 @@ func ErrorTaskFunc(err error) func(ctx context.Context, args json.RawMessage) er
 
 func CreateTask(taskId string, taskName string, args []byte) godoit.Task {
 	return godoit.Task{
-		Id:      taskId,
-		Name:    taskName,
-		Created: time.Now(),
-		When:    time.Now(),
-		Updated: time.Now(),
-		Status:  godoit.PENDING,
-		Args:    args,
+		Id:        taskId,
+		Name:      taskName,
+		Created:   time.Now().UTC(),
+		Scheduled: time.Now().UTC(),
+		Updated:   time.Now().UTC(),
+		Status:    godoit.PENDING,
+		Args:      args,
 	}
 }
