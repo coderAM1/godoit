@@ -4,6 +4,7 @@ import "context"
 
 // LogIt is an interface to determine what messages should be logged at what level, this does not actually indicate what
 // level a log should be emitted at but rather a suggestion of how the log should be logged
+// TODO turn into a struct that the functions can be changed for
 type LogIt interface {
 	// TraceLog is used to indicate this msg should be logged at the trace level
 	TraceLog(ctx context.Context, msg string)

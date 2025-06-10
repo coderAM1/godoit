@@ -11,7 +11,7 @@ type Chronicler interface {
 
 	// UpsertOverseerInfo adds or updates the overseer info to the db, if needed.
 	// TODO figure out if needed
-	UpsertOverseerInfo(ctx context.Context, info OverseerInfo)
+	// UpsertOverseerInfo(ctx context.Context, info OverseerInfo)
 
 	// RecordTask adds a specified Task to the database to be run at a later time.
 	RecordTask(ctx context.Context, task Task) error

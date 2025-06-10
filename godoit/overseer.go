@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"sync/atomic"
 	"time"
 )
@@ -112,6 +113,7 @@ func (man *Overseer) Start(ctx context.Context, durationBetweenQuery time.Durati
 	// probably not needed but just being safe
 	taskGoing.Store(0)
 	for {
+		fmt.Println(fmt.Sprintf("tick count: %d", tickCount))
 		if tickCount > 4 {
 			tickCount = 0
 			// TODO add logic for cleaning up bad state tasks and removing completed jobs after an amount of time
@@ -124,7 +126,9 @@ func (man *Overseer) Start(ctx context.Context, durationBetweenQuery time.Durati
 			return errors.New("context cancelled")
 		}
 		currentTasksRunning := int(taskGoing.Load())
+		fmt.Println(fmt.Sprintf("Number to query: %d", man.threadLimit-currentTasksRunning))
 		tasks, err := man.chronicler.QueryTasks(ctx, man.threadLimit-currentTasksRunning)
+		fmt.Println(len(tasks))
 		if err != nil {
 			return err
 		}

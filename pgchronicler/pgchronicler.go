@@ -3,6 +3,7 @@ package pgchronicler
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/coderAM1/godoit/godoit"
 	"github.com/jackc/pgx/v5"
 )
@@ -35,10 +36,6 @@ func (pg *Chronicler) SetUpChronicle(ctx context.Context) error {
 	return err
 }
 
-func (pg *Chronicler) UpsertOverseerInfo(ctx context.Context, info godoit.OverseerInfo) {
-
-}
-
 func (pg *Chronicler) RecordTask(ctx context.Context, task godoit.Task) error {
 	// pg.logger.InfoLog(ctx, "starting setting up postgres db")
 	recordTask := createInsertTaskCommand(pg.naming.tableName)
@@ -50,9 +47,44 @@ func (pg *Chronicler) QueryTasks(ctx context.Context, limit int) ([]godoit.Task,
 	if limit <= 0 {
 		return []godoit.Task{}, nil
 	}
-	return []godoit.Task{}, nil
+	selectStatement := createSelectTasksCommand(pg.naming.tableName, limit)
+	fmt.Println(selectStatement)
+	tx, err := pg.conn.Begin(ctx)
+	if err != nil {
+		return []godoit.Task{}, err
+	}
+	defer tx.Rollback(ctx)
+	rows, queryErr := tx.Query(ctx, selectStatement)
+	if queryErr != nil {
+		return []godoit.Task{}, queryErr
+	}
+	tasks, conversionErr := pgx.CollectRows(rows, pgx.RowToStructByName[godoit.Task])
+	if conversionErr != nil {
+		return nil, conversionErr
+	}
+	if len(tasks) == 0 {
+		return []godoit.Task{}, nil
+	}
+	newUpdatedTime := getProperTimeCheckString()
+	updateStatement := createUpdateTaskCommand(pg.naming.tableName)
+	b := &pgx.Batch{}
+	for _, task := range tasks {
+		b.Queue(updateStatement, task.Id, godoit.GOING, newUpdatedTime)
+	}
+	batchErr := tx.SendBatch(ctx, b).Close()
+	if batchErr != nil {
+		return nil, batchErr
+	}
+	commitErr := tx.Commit(ctx)
+	if commitErr != nil {
+		return nil, commitErr
+	}
+	return tasks, nil
 }
 
 func (pg *Chronicler) UpdateTask(ctx context.Context, task godoit.Task) error {
-	return nil
+	newUpdatedTime := getProperTimeCheckString()
+	updateStatement := createUpdateTaskCommand(pg.naming.tableName)
+	_, err := pg.conn.Exec(ctx, updateStatement, task.Id, task.Status, newUpdatedTime)
+	return err
 }

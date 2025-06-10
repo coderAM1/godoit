@@ -18,17 +18,17 @@ const UNKNOWN status = "UNKNOWN"
 // structs
 
 type Task struct {
-	Id             string          `json:"id"`
-	Name           string          `json:"taskName"`
-	Created        time.Time       `json:"created"`
-	Scheduled      time.Time       `json:"scheduled"`
-	Updated        time.Time       `json:"updated"`
-	Status         status          `json:"status"`
-	Args           json.RawMessage `json:"args"`
-	Retry          bool            `json:"retry,omitempty"`
-	RetryAmounts   int             `json:"retryAmounts,omitempty"`
-	AttemptedTimes []time.Time     `json:"attemptedTimes,omitempty"`
-	Recurring      bool            `json:"recurringTask,omitempty"`
+	Id        string          `json:"id" db:"id"`
+	Name      string          `json:"taskName" db:"taskname"`
+	Created   time.Time       `json:"created" db:"created"`
+	Scheduled time.Time       `json:"scheduled" db:"scheduled"`
+	Updated   time.Time       `json:"updated" db:"updated"`
+	Status    status          `json:"status" db:"status"`
+	Args      json.RawMessage `json:"args" db:"args"`
+	// Retry          bool            `json:"retry,omitempty"`
+	// RetryAmounts   int             `json:"retryAmounts,omitempty"`
+	// AttemptedTimes []time.Time     `json:"attemptedTimes,omitempty"`
+	// Recurring      bool            `json:"recurringTask,omitempty"`
 }
 
 type RecurringTaskInfo struct {
